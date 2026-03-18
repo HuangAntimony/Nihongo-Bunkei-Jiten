@@ -4,7 +4,9 @@ A rebuild of the Japanese grammar dictionary from mefat.review as a standard Yom
 
 ## Screenshots
 
-Add your screenshots here.
+![Light mode](screenshots/light.png)
+
+![Dark mode](screenshots/dark.png)
 
 ## Build
 
