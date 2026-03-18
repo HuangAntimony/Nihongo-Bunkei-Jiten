@@ -1,0 +1,81 @@
+<!doctype html>
+
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no">
+
+    <title>文型辞書</title>
+
+    <link rel="stylesheet" type="text/css" href="normalize.css">
+    <link rel="stylesheet" type="text/css" href="fontawesome-all.css">
+    <link rel="stylesheet" type="text/css" href="customModal.css">
+    <link rel="stylesheet" type="text/css" href="bunkei.ziten.css">
+</head>
+
+<body>
+    <div id=topBar>
+        <div id=title>日本語文型辞典</div>
+        <div id=history>
+            <a class=myButton id=random><i class="fas fa-random"></i></a>
+            <a class=myButton id=history-backward><i class="fas fa-chevron-left"></i></a>
+            <a class=myButton id=history-forward><i class="fas fa-chevron-right"></i></a>
+            <a class=myButton id=permalink><i class="fas fa-link"></i></a>
+            <a class=myButton id=language><span style="font-family: monospace;">JP</span></a>
+            <a class=myButton id=help><i class="fas fa-question"></i></a>
+        </div>
+    </div>
+
+    <!--<div id=main><div id=mainContent></div></div>-->
+    <div id=mainContent></div>
+
+    <div id=sideBar class=transition>
+        <div id=searchBar>
+            <input autocapitalize="none" autocorrect="none" autocomplete="off" id=search type=text placeholder="検索">
+        </div>
+
+        <div id=toc></div>
+        <div id=tocFooter></div>
+    </div>
+
+    <div id=pullout class=transition><div id=pulloutMenu>目次</div></div>
+    
+    <div id=spinnerContainer>
+        <div>
+            <div class="preloader3"></div>
+        </div>
+    </div>
+
+    <div id=langBar class=transitionLang>
+        <input type="radio" id="langJP" name="rr" value="jp" />
+        <label for="langJP">日本語</label>
+        <br>
+        <input type="radio" id="langVI" name="rr" value="vi" />
+        <label for="langVI">Tiếng Việt</label>
+    </div>
+
+    <div class=modal>
+        <div class=modalContainer>
+            <div class=modalContent></div>
+        </div>
+    </div>
+
+    <div id=stickyPanelContainer><div id=stickyPanel></div></div>
+
+    <script type="text/javascript" src="jquery.min.js"></script>
+    <script type="text/javascript" src="wanakana.min.js"></script>
+    <script type="text/javascript" src="xStore.min.js"></script>
+    <script type="text/javascript" src="delayed.min.js"></script>
+    <script type="text/javascript" src="jquery.mutationobserver.min.js"></script>
+    <script type="text/javascript" src="underscore.min.js"></script>
+    <!-- FontLoader was custom patched, DO NOT update -->
+    <script type="text/javascript" src="FontLoader.js"></script>
+    <script type="text/javascript" src="vagueTime.min.js"></script>
+    <script type="text/javascript" src="customModal.js"></script>
+    <script type="text/javascript" src="checkFontAvailable.js"></script>
+    <script type="text/javascript" src="bunkei.ziten.js"></script>
+</body>
+
+</html>
