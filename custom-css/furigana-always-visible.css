@@ -1,0 +1,16 @@
+/* Paste this into Yomitan custom CSS to always show furigana for this dictionary. */
+[data-dictionary="日本語文型辞典"] ruby {
+    ruby-position: over;
+}
+
+[data-dictionary="日本語文型辞典"] ruby rt {
+    display: ruby-text !important;
+    font-size: 0.6em !important;
+    opacity: 0.82 !important;
+    color: var(--headword-reading-text-color, var(--text-color)) !important;
+    letter-spacing: 0 !important;
+}
+
+[data-dictionary="日本語文型辞典"] ruby rp {
+    display: none !important;
+}

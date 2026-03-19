@@ -1,0 +1,30 @@
+/* Paste this into Yomitan custom CSS to show furigana on hover without reflow. */
+[data-dictionary="日本語文型辞典"] ruby {
+    position: relative;
+    ruby-position: over;
+}
+
+[data-dictionary="日本語文型辞典"] ruby rt {
+    display: none !important;
+    position: absolute;
+    inset-inline-start: 50%;
+    inset-block-end: 100%;
+    transform: translateX(-50%);
+    width: max-content;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 1;
+    font-size: 0.6em !important;
+    opacity: 0.82 !important;
+    color: var(--headword-reading-text-color, var(--text-color)) !important;
+    letter-spacing: 0 !important;
+}
+
+[data-dictionary="日本語文型辞典"] ruby:hover rt {
+    display: block !important;
+}
+
+[data-dictionary="日本語文型辞典"] ruby rp {
+    display: none !important;
+}

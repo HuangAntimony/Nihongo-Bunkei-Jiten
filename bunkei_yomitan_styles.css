@@ -1,7 +1,7 @@
 *[data-sc-role="entry"] {
-    line-height: 1.7;
+    line-height: 1.66;
     color: var(--text-color);
-    letter-spacing: 0.01em;
+    letter-spacing: 0;
 }
 
 *[data-sc-role="entry"] a[href^="?"] {
@@ -10,17 +10,24 @@
 }
 
 div[data-sc-role="meta"] {
+    display: block;
     font-size: 0.92em;
     color: var(--text-color);
 }
 
-div[data-sc-role="meta-line"] + div[data-sc-role="meta-line"] {
-    margin-top: 0.14em;
+div[data-sc-role="meta-line"] {
+    display: inline;
+}
+
+div[data-sc-role="meta-line"] + div[data-sc-role="meta-line"]::before {
+    content: " · ";
+    opacity: 0.65;
 }
 
 span[data-sc-role="meta-label"] {
-    display: inline-block;
-    margin-right: 0.35em;
+    display: inline;
+    margin-right: 0.25em;
+    font-weight: 700;
 }
 
 ol[data-sc-role="sense-list"] {
@@ -38,14 +45,14 @@ li[data-sc-role="sense-item"] {
 }
 
 div[data-sc-role="sense-title"] {
-    display: inline-block;
-    margin-bottom: 0.35em;
-    background-color: rgba(127, 127, 127, 0.08);
-    border-radius: 0.18em;
+    display: inline;
+    margin-bottom: 0.22em;
+    background-color: transparent;
+    border-radius: 0;
 }
 
 div[data-sc-role="preface"] {
-    margin-bottom: 0.85em;
+    margin-bottom: 0.72em;
 }
 
 div[data-sc-role="subsense"] {
@@ -53,7 +60,7 @@ div[data-sc-role="subsense"] {
 }
 
 div[data-sc-role="subsense-title"] {
-    margin-bottom: 0.25em;
+    margin-bottom: 0.18em;
 }
 
 ul[data-sc-role="pattern-list"] {
@@ -66,17 +73,17 @@ li[data-sc-role="pattern-item"] {
 }
 
 div[data-sc-role="block-heading"] {
-    margin-bottom: 0.18em;
+    margin-bottom: 0.12em;
 }
 
 span[data-sc-role="block-label"] {
     display: inline-block;
-    letter-spacing: 0.01em;
+    letter-spacing: 0;
     box-shadow: none;
 }
 
 div[data-sc-role="block-body"] {
-    line-height: 1.8;
+    line-height: 1.75;
     border-inline-start: solid 3px var(--light-border-color);
     box-shadow: none;
 }
@@ -110,7 +117,7 @@ span[data-sc-role="block-label"][data-sc-kind="keyword"] {
 }
 
 div[data-sc-role="example-line"] + div[data-sc-role="example-line"] {
-    margin-top: 0.18em;
+    margin-top: 0.1em;
 }
 
 span[data-sc-role="example-header"] {
@@ -129,13 +136,12 @@ ruby {
 }
 
 ruby rt {
-    visibility: visible !important;
-    opacity: 0.82 !important;
-    font-size: 0.6em !important;
-    color: var(--headword-reading-text-color, var(--text-color)) !important;
-    letter-spacing: 0 !important;
+    display: none;
+    color: var(--headword-reading-text-color, var(--text-color));
+    font-size: 0.6em;
+    letter-spacing: 0;
 }
 
 ruby rp {
-    display: none !important;
+    display: none;
 }

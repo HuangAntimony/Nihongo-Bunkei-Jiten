@@ -24,62 +24,62 @@ DEFAULT_DOWNLOAD_URL = f"{DEFAULT_PROJECT_URL}/releases/latest/download/Nihongo-
 DEFAULT_REVISION = "0.0.0"
 
 ENTRY_STYLE = {
-    "padding": "0.1em 0",
-    "margin": "0.2em 0",
+    "padding": "0",
+    "margin": "0",
 }
 META_STYLE = {
     "padding": "0",
-    "marginBottom": "0.8em",
+    "marginBottom": "0.45em",
 }
-META_LINE_STYLE = {"margin": "0.12em 0"}
+META_LINE_STYLE = {"margin": "0"}
 META_LABEL_STYLE = {"fontWeight": "bold", "color": "var(--text-color)"}
 PREFACE_STYLE = {
     "padding": "0",
-    "margin": "0.2em 0 0.95em 0",
+    "margin": "0.15em 0 0.72em 0",
 }
-SENSE_LIST_STYLE = {"margin": "0.55em 0 0 1.45em", "padding": "0"}
+SENSE_LIST_STYLE = {"margin": "0.34em 0 0 1.45em", "padding": "0"}
 SENSE_ITEM_STYLE = {
     "padding": "0",
-    "margin": "0 0 1em 0",
+    "margin": "0 0 0.76em 0",
 }
 SENSE_TITLE_STYLE = {
-    "padding": "0.05em 0.25em",
-    "marginBottom": "0.45em",
+    "padding": "0",
+    "marginBottom": "0.28em",
     "fontWeight": "bold",
     "color": "var(--text-color)",
 }
 SUBSENSE_STYLE = {
     "padding": "0 0 0 0.75em",
-    "margin": "0.7em 0 0.85em 0",
+    "margin": "0.48em 0 0.65em 0",
 }
 SUBSENSE_TITLE_STYLE = {
     "padding": "0",
-    "marginBottom": "0.4em",
+    "marginBottom": "0.24em",
     "fontWeight": "bold",
     "color": "var(--text-color)",
 }
-PATTERN_LIST_STYLE = {"listStyleType": "none", "margin": "0.25em 0 0.6em 0", "padding": "0"}
+PATTERN_LIST_STYLE = {"listStyleType": "none", "margin": "0.18em 0 0.42em 0", "padding": "0"}
 PATTERN_ITEM_STYLE = {
     "padding": "0 0 0 0.6em",
-    "margin": "0 0 0.35em 0",
+    "margin": "0 0 0.18em 0",
     "color": "var(--text-color)",
 }
-BLOCK_STYLE = {"margin": "0.48em 0 0.72em 0"}
-BLOCK_HEADING_STYLE = {"marginBottom": "0.28em"}
+BLOCK_STYLE = {"margin": "0.32em 0 0.5em 0"}
+BLOCK_HEADING_STYLE = {"marginBottom": "0.14em"}
 BLOCK_LABEL_BASE_STYLE = {
     "fontWeight": "bold",
     "fontSize": "0.84em",
     "padding": "0",
 }
-BLOCK_BODY_BASE_STYLE = {"padding": "0.12em 0 0.12em 0.7em"}
-EXAMPLE_LINE_STYLE = {"margin": "0.24em 0"}
+BLOCK_BODY_BASE_STYLE = {"padding": "0.16em 0 0.16em 0.65em"}
+EXAMPLE_LINE_STYLE = {"margin": "0.12em 0"}
 EXAMPLE_HEADER_STYLE = {
     "fontWeight": "bold",
     "fontSize": "0.82em",
     "padding": "0",
     "color": "var(--text-color)",
 }
-REFERENCE_LINE_STYLE = {"margin": "0.12em 0"}
+REFERENCE_LINE_STYLE = {"margin": "0.06em 0"}
 BLOCK_KIND_STYLE_MAP = {
     "explains": {
         "label": {"color": "var(--accent-color, var(--link-color))"},
