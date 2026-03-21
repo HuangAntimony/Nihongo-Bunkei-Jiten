@@ -22,6 +22,44 @@ Generate the dictionary locally:
 python3 build_standard_yomitan_dict.py
 ```
 
+Ellipsis headwords such as `お…ください` are maintained in
+[`ellipsis_aliases.json`](ellipsis_aliases.json). This file can carry three
+kinds of reviewable adjustments:
+
+- `forms[]`: formal searchable headwords for the entry; the first item becomes
+  the visible main headword
+- `forms[].aliases`: concrete lookup forms extracted from ellipsis patterns; these
+  generate redirect rows that point to the specific parent `form`, and alias
+  items can be strings or `{term, reading}` objects when non-kana redirects need
+  an explicit reading. When an alias can be matched uniquely against the
+  reference term banks, its redirect row also inherits Yomitan `rules` so deinflection can still land
+  on the redirect.
+
+Once `forms` is present for an entry, it fully replaces the source-generated
+headword set for that entry. Any original source form that is not listed there
+will no longer be emitted as a searchable headword.
+
+Example sentences and raw candidate fragments do not belong there. An empty
+`aliases` array means no stable live alias has been confirmed for that form yet.
+
+For entries without manual `forms`, the builder first prefers any explicit
+source-site kanji headword it can already parse from the entry heading, so
+source pairs such as `時 / とき` are emitted directly instead of keeping a
+separate kana-only main row.
+
+Conjugation-enabling `rules` are resolved from `raw/jitendex-yomitan/`. The
+builder first tries exact term matches, then exact reading matches when they
+resolve to a single non-empty Yomitan rule. Ambiguous or missing cases can be
+filled manually in [`entry_rules_overrides.json`](entry_rules_overrides.json).
+
+For source entries that are still kana-only after parsing, the builder also
+checks the same Jitendex term banks for a unique non-kana `term + reading`
+headword with the same reading (and, when available, the same Yomitan
+`rules`). This canonicalization is only applied when Jitendex does not also
+keep a kana headword for the same reading, so common kana-primary words such as
+`する` stay kana-first while entries like `ずには居られない` align with
+Jitendex.
+
 By default, this writes:
 
 ```text

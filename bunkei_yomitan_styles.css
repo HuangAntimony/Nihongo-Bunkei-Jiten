@@ -131,6 +131,11 @@ div[data-sc-role="reference-line"] {
     line-height: 1.75;
 }
 
+div[data-sc-content="redirect-glossary"] {
+    font-size: 1.8em;
+    margin-top: 0.2em;
+}
+
 ruby {
     ruby-position: over;
 }

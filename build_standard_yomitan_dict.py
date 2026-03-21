@@ -8,11 +8,15 @@ import re
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from urllib.parse import quote
 
 
 ROOT = Path(__file__).resolve().parent
 RAW_DIR = ROOT / "raw" / "mefat.review"
 STYLE_FILE = ROOT / "bunkei_yomitan_styles.css"
+ELLIPSIS_ALIAS_FILE = ROOT / "ellipsis_aliases.json"
+ENTRY_RULE_OVERRIDE_FILE = ROOT / "entry_rules_overrides.json"
+JITENDEX_DIR = ROOT / "raw" / "jitendex-yomitan"
 TERM_LIMIT = 2000
 DEFAULT_DICT_NAME = "日本語文型辞典"
 DEFAULT_OUTPUT = "Nihongo-Bunkei-Jiten.zip"
@@ -22,6 +26,7 @@ DEFAULT_SOURCE_URL = "https://www.mefat.review/bunkei.ziten.html"
 DEFAULT_INDEX_URL = f"{DEFAULT_PROJECT_URL}/releases/latest/download/index.json"
 DEFAULT_DOWNLOAD_URL = f"{DEFAULT_PROJECT_URL}/releases/latest/download/Nihongo-Bunkei-Jiten.zip"
 DEFAULT_REVISION = "0.0.0"
+KANJI_RE = re.compile(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]")
 
 ENTRY_STYLE = {
     "padding": "0",
@@ -195,6 +200,39 @@ def make_list(tag, items, role=None, style=None, extra_data=None):
     return node
 
 
+def build_internal_query_href(term: str, primary_reading: str = "") -> str:
+    href = f"?query={quote(term, safe='')}&wildcards=off"
+    if primary_reading:
+        href += f"&primary_reading={quote(primary_reading, safe='')}"
+    return href
+
+
+def build_redirect_glossary(target_term: str, target_reading: str, source_term: str):
+    return [
+        {
+            "type": "structured-content",
+            "content": {
+                "tag": "div",
+                "lang": "ja",
+                "data": {"content": "redirect-glossary"},
+                "content": [
+                    "⟶",
+                    {
+                        "tag": "a",
+                        "href": build_internal_query_href(target_term, target_reading),
+                        "lang": "ja",
+                        "content": [target_term],
+                    },
+                ],
+            },
+        },
+        [
+            target_term,
+            [f"redirected from {source_term}"],
+        ],
+    ]
+
+
 def append_text_parts(target, text: str):
     if not text:
         return
@@ -296,6 +334,280 @@ def clean_keyword(text: str) -> str:
 def clean_search_term(text: str) -> str:
     text = clean_keyword(text)
     return re.sub(r"\s*[0-9０-９]+$", "", text).strip()
+
+
+def has_kanji(text: str) -> bool:
+    return bool(KANJI_RE.search(clean_keyword(text)))
+
+
+def load_ellipsis_entry_specs(path: Path):
+    if not path.exists():
+        return {}
+
+    payload = read_json(path)
+    if isinstance(payload, dict):
+        payload = payload.get("entries", [])
+
+    specs = {}
+    for item in payload:
+        entry_id = item["id"]
+        specs[entry_id] = {"forms": list(item.get("forms", []))}
+    return specs
+
+
+def load_entry_rule_overrides(path: Path):
+    if not path.exists():
+        return {}
+
+    payload = read_json(path)
+    if isinstance(payload, dict):
+        payload = payload.get("entries", [])
+
+    overrides = {}
+    for item in payload:
+        entry_id = item["id"]
+        rules = clean_keyword(item.get("rules", ""))
+        if not rules:
+            raise ValueError(f"Rule override for {entry_id} must define a non-empty rules string")
+        overrides[entry_id] = rules
+    return overrides
+
+
+def find_jitendex_dir():
+    if JITENDEX_DIR.exists():
+        return JITENDEX_DIR
+    return None
+
+
+def build_reference_rule_index(reference_dir: Path | None):
+    index = {"terms": {}, "readings": {}}
+    if reference_dir is None:
+        return index
+
+    for bank_path in sorted(reference_dir.glob("term_bank_*.json")):
+        for row in read_json(bank_path):
+            term = clean_keyword(row[0])
+            reading = clean_keyword(row[1])
+            definition_tags = clean_keyword(row[2])
+            rules = clean_keyword(row[3])
+            if definition_tags == "forms" or not rules:
+                continue
+            index["terms"].setdefault(term, set()).add(rules)
+            if reading:
+                index["readings"].setdefault(reading, set()).add(rules)
+
+    return index
+
+
+def build_reference_headword_index(reference_dir: Path | None):
+    index = {"reading_rules": {}, "readings": {}}
+    if reference_dir is None:
+        return index
+
+    reading_rules_non_kana_candidates = {}
+    reading_non_kana_candidates = {}
+    reading_rules_has_kana = set()
+    reading_has_kana = set()
+
+    for bank_path in sorted(reference_dir.glob("term_bank_*.json")):
+        for row in read_json(bank_path):
+            term = clean_keyword(row[0])
+            reading = clean_keyword(row[1])
+            rules = clean_keyword(row[3])
+            sequence = row[6]
+            if not term or not reading or sequence <= 0:
+                continue
+            if term == reading or not has_kanji(term):
+                reading_rules_has_kana.add((reading, rules))
+                reading_has_kana.add(reading)
+                continue
+            reading_rules_non_kana_candidates.setdefault((reading, rules), set()).add(term)
+            reading_non_kana_candidates.setdefault(reading, set()).add(term)
+
+    for key, terms in reading_rules_non_kana_candidates.items():
+        if len(terms) == 1 and key not in reading_rules_has_kana:
+            index["reading_rules"][key] = next(iter(terms))
+
+    for reading, terms in reading_non_kana_candidates.items():
+        if len(terms) == 1 and reading not in reading_has_kana:
+            index["readings"][reading] = next(iter(terms))
+
+    return index
+
+
+def resolve_reference_rules(terms, readings, rule_index):
+    term_rules = set()
+    for term in terms:
+        term_rules.update(rule_index["terms"].get(term, set()))
+    if len(term_rules) == 1:
+        return next(iter(term_rules)), "reference-term"
+
+    reading_rules = set()
+    for reading in readings:
+        if reading:
+            reading_rules.update(rule_index["readings"].get(reading, set()))
+    if not term_rules and len(reading_rules) == 1:
+        return next(iter(reading_rules)), "reference-reading"
+
+    return "", "none"
+
+
+def resolve_entry_rules(entry_id: str, terms, readings, rule_index, rule_overrides):
+    override_rules = rule_overrides.get(entry_id)
+    if override_rules:
+        return override_rules, "override"
+    return resolve_reference_rules(terms, readings, rule_index)
+
+
+def resolve_jitendex_headword_term(reading: str, rules: str, jitendex_headword_index):
+    reading = clean_keyword(reading)
+    if not reading:
+        return ""
+    if rules:
+        term = jitendex_headword_index["reading_rules"].get((reading, clean_keyword(rules)))
+        if term:
+            return term
+    return jitendex_headword_index["readings"].get(reading, "")
+
+
+def canonicalize_primary_headword(headwords, rules: str, jitendex_headword_index):
+    if not headwords:
+        return headwords, False
+
+    primary = headwords[0]
+    reading = clean_keyword(primary["reading"] or primary["term"])
+    primary_term = clean_keyword(primary["term"])
+    if not reading or has_kanji(primary_term):
+        return headwords, False
+
+    preferred_term = resolve_jitendex_headword_term(reading, rules, jitendex_headword_index)
+    if not preferred_term or preferred_term == primary_term:
+        return headwords, False
+
+    return [
+        {
+            "term": preferred_term,
+            "reading": reading,
+            "term_tags": "",
+            "score": 10,
+        }
+    ], True
+
+
+def build_source_headword_items(entry_info, entry_reading: str):
+    primary_term = entry_info["keyword_search"] if has_editorial_numeric_suffix(entry_info["keyword"]) else entry_info["keyword"]
+    terms = [primary_term]
+
+    cleaned_keyword = entry_info["keyword_search"]
+    if cleaned_keyword and cleaned_keyword not in terms:
+        terms.append(cleaned_keyword)
+    if entry_info["kanji"] and entry_info["kanji"] not in terms:
+        terms.append(entry_info["kanji"])
+
+    return [{"term": term, "reading": entry_reading} for term in terms]
+
+
+def prefer_source_kanji_headwords(source_headwords):
+    if not source_headwords:
+        return source_headwords
+
+    primary = source_headwords[0]
+    primary_reading = clean_keyword(primary["reading"] or primary["term"])
+    if not primary_reading:
+        return source_headwords
+
+    preferred = []
+    seen = set()
+    for item in source_headwords:
+        term = clean_keyword(item["term"])
+        reading = clean_keyword(item["reading"] or item["term"])
+        if not term or not has_kanji(term) or reading != primary_reading:
+            continue
+        key = (term, reading)
+        if key in seen:
+            continue
+        seen.add(key)
+        preferred.append({"term": term, "reading": reading})
+
+    return preferred or source_headwords
+
+
+def build_entry_headword_items(source_headwords, form_specs):
+    headwords = []
+    seen = set()
+    explicit_specs = []
+
+    for spec in form_specs:
+        term, reading = normalize_alias_item(spec)
+        normalized = {
+            "term": term,
+            "reading": reading,
+            "aliases": spec.get("aliases", []),
+        }
+        explicit_specs.append(normalized)
+
+    def add(term: str, reading: str, term_tags: str, score: int):
+        key = (term, reading)
+        if key in seen:
+            return
+        seen.add(key)
+        headwords.append(
+            {
+                "term": term,
+                "reading": reading,
+                "term_tags": term_tags,
+                "score": score,
+            }
+        )
+
+    if explicit_specs:
+        first = explicit_specs[0]
+        add(first["term"], first["reading"], "", 10)
+
+        for item in explicit_specs[1:]:
+            add(item["term"], item["reading"], "alias", 1)
+        return headwords
+
+    source_headwords = prefer_source_kanji_headwords(source_headwords)
+
+    if source_headwords:
+        first = source_headwords[0]
+        add(first["term"], first["reading"], "", 10)
+
+    for item in source_headwords:
+        add(item["term"], item["reading"], "alias", 1)
+
+    return headwords
+
+
+def default_alias_reading(term: str) -> str:
+    text = to_half_width(clean_keyword(term)).replace(" ", "")
+    reading = []
+    for ch in text:
+        code = ord(ch)
+        if 0x30A1 <= code <= 0x30F6:
+            reading.append(chr(code - 0x60))
+        else:
+            reading.append(ch)
+    text = "".join(reading)
+    if text and re.fullmatch(r"[ぁ-ゖー]+", text):
+        return text.replace("ー", "")
+    return ""
+
+
+def normalize_alias_item(item):
+    if isinstance(item, str):
+        term = clean_keyword(item)
+        reading = ""
+    elif isinstance(item, dict):
+        term = clean_keyword(item.get("term", ""))
+        reading = clean_keyword(item.get("reading", ""))
+    else:
+        raise TypeError(f"Alias items must be strings or objects, got {type(item)!r}")
+
+    if not term:
+        raise ValueError("Alias term cannot be empty")
+    return term, reading or default_alias_reading(term)
 
 
 def has_editorial_numeric_suffix(text: str) -> bool:
@@ -639,10 +951,63 @@ def unique_entries(items):
     return output
 
 
-def build_entries():
+def build_ellipsis_alias_entries(
+    entry_id: str,
+    alias_forms,
+    valid_source_terms,
+    sequence: int,
+    rule_index,
+):
+    alias_entries = []
+
+    for form_spec in alias_forms:
+        source_term = clean_keyword(form_spec["term"])
+        if source_term not in valid_source_terms:
+            raise ValueError(
+                f"Alias form {source_term!r} for {entry_id} does not match any generated headword form"
+            )
+        redirect_target_term, redirect_target_reading = normalize_alias_item(form_spec)
+
+        for alias_item in form_spec.get("aliases", []):
+            term, reading = normalize_alias_item(alias_item)
+            if term in valid_source_terms:
+                continue
+            alias_rules, _ = resolve_reference_rules([term], [reading], rule_index)
+            alias_entries.append(
+                {
+                    "term": term,
+                    "reading": reading,
+                    "definition_tags": "",
+                    "rules": alias_rules,
+                    "score": -100,
+                    "glossary": build_redirect_glossary(
+                        redirect_target_term,
+                        redirect_target_reading,
+                        term,
+                    ),
+                    # Mirror the Jitendex/JMdict redirect convention: a negative sequence suppresses
+                    # related-entry grouping while still leaving a stable link target.
+                    "sequence": -sequence,
+                    "term_tags": "",
+                }
+            )
+
+    return alias_entries
+
+
+def build_entries_with_stats():
     toc = read_json(RAW_DIR / "toc.json")
     dict_data = read_json(RAW_DIR / "dict.json")
+    ellipsis_entry_specs = load_ellipsis_entry_specs(ELLIPSIS_ALIAS_FILE)
+    rule_overrides = load_entry_rule_overrides(ENTRY_RULE_OVERRIDE_FILE)
+    reference_dir = find_jitendex_dir()
+    reference_rule_index = build_reference_rule_index(reference_dir)
+    reference_headword_index = build_reference_headword_index(reference_dir)
+    seen_ellipsis_spec_ids = set()
+    seen_rule_override_ids = set()
     entries = []
+    rule_stats = {"override": 0, "reference-term": 0, "reference-reading": 0, "none": 0}
+    headword_stats = {"reference-canonicalized": 0}
 
     for sequence, toc_item in enumerate(toc, start=1):
         root = parse_fragment(dict_data[toc_item["id"]])
@@ -650,30 +1015,81 @@ def build_entries():
         preface, sections = parse_blocks(root.find("div[@class='item']"))
         glossary = [{"type": "structured-content", "content": build_glossary_content(entry_info, preface, sections)}]
         reading = reading_from_keyword(entry_info["keyword"]) or entry_info["keyword_search"]
+        source_headwords = build_source_headword_items(entry_info, reading)
+        entry_spec = ellipsis_entry_specs.get(toc_item["id"])
+        if entry_spec is not None:
+            seen_ellipsis_spec_ids.add(toc_item["id"])
+        form_specs = (entry_spec or {}).get("forms", [])
+        headwords = build_entry_headword_items(source_headwords=source_headwords, form_specs=form_specs)
+        headword_terms = [item["term"] for item in headwords]
+        headword_readings = [item["reading"] for item in headwords if item["reading"]]
 
-        primary_term = entry_info["keyword_search"] if has_editorial_numeric_suffix(entry_info["keyword"]) else entry_info["keyword"]
-        primary_terms = [primary_term]
-        cleaned_keyword = entry_info["keyword_search"]
-        if cleaned_keyword and cleaned_keyword not in primary_terms:
-            primary_terms.append(cleaned_keyword)
-        if entry_info["kanji"] and entry_info["kanji"] not in primary_terms:
-            primary_terms.append(entry_info["kanji"])
+        rules, rule_source = resolve_entry_rules(
+            entry_id=toc_item["id"],
+            terms=headword_terms,
+            readings=headword_readings,
+            rule_index=reference_rule_index,
+            rule_overrides=rule_overrides,
+        )
 
-        for index, term in enumerate(primary_terms):
+        if not form_specs:
+            headwords, canonicalized = canonicalize_primary_headword(headwords, rules, reference_headword_index)
+            if canonicalized:
+                headword_stats["reference-canonicalized"] += 1
+                headword_terms = [item["term"] for item in headwords]
+                headword_readings = [item["reading"] for item in headwords if item["reading"]]
+                rules, rule_source = resolve_entry_rules(
+                    entry_id=toc_item["id"],
+                    terms=headword_terms,
+                    readings=headword_readings,
+                    rule_index=reference_rule_index,
+                    rule_overrides=rule_overrides,
+                )
+
+        rule_stats[rule_source] += 1
+        if rule_source == "override":
+            seen_rule_override_ids.add(toc_item["id"])
+
+        for item in headwords:
             entries.append(
                 {
-                    "term": term,
-                    "reading": reading,
+                    "term": item["term"],
+                    "reading": item["reading"],
                     "definition_tags": "",
-                    "rules": "",
-                    "score": 10 if index == 0 else 1,
+                    "rules": rules,
+                    "score": item["score"],
                     "glossary": glossary,
                     "sequence": sequence,
-                    "term_tags": "grammar" if index == 0 else "grammar alias",
+                    "term_tags": item["term_tags"],
                 }
             )
 
-    return unique_entries(entries)
+        alias_forms = form_specs
+        if alias_forms:
+            entries.extend(
+                build_ellipsis_alias_entries(
+                    entry_id=toc_item["id"],
+                    alias_forms=alias_forms,
+                    valid_source_terms={item["term"] for item in headwords},
+                    sequence=sequence,
+                    rule_index=reference_rule_index,
+                )
+            )
+
+    unknown_alias_ids = sorted(set(ellipsis_entry_specs) - seen_ellipsis_spec_ids)
+    if unknown_alias_ids:
+        raise ValueError(f"Unknown ellipsis alias ids: {', '.join(unknown_alias_ids)}")
+
+    unknown_rule_override_ids = sorted(set(rule_overrides) - seen_rule_override_ids)
+    if unknown_rule_override_ids:
+        raise ValueError(f"Unknown entry rule override ids: {', '.join(unknown_rule_override_ids)}")
+
+    return unique_entries(entries), rule_stats, headword_stats
+
+
+def build_entries():
+    entries, _, _ = build_entries_with_stats()
+    return entries
 
 
 def build_index(
@@ -704,7 +1120,6 @@ def build_index(
 
 def build_tag_bank():
     return [
-        ["grammar", "dictionary", 0, "日本語文型項目", 0],
         ["alias", "search", 0, "別表記・索引用の別名項目", 0],
     ]
 
@@ -723,7 +1138,7 @@ def build_zip(
     index_url: str,
     download_url: str,
 ):
-    entries = build_entries()
+    entries, rule_stats, headword_stats = build_entries_with_stats()
     with zipfile.ZipFile(
         output_path,
         "w",
@@ -763,7 +1178,7 @@ def build_zip(
             ]
             write_json(zip_file, f"term_bank_{offset // TERM_LIMIT + 1}.json", bank_payload)
 
-    return entries
+    return entries, rule_stats, headword_stats
 
 
 def main():
@@ -816,7 +1231,7 @@ def main():
     args = parser.parse_args()
 
     output_path = Path(args.output)
-    entries = build_zip(
+    entries, rule_stats, headword_stats = build_zip(
         output_path=output_path,
         dict_name=args.name,
         revision=args.revision,
@@ -827,6 +1242,19 @@ def main():
         download_url=args.download_url,
     )
     print(f"Wrote {len(entries)} entries to {output_path}")
+    matched_rule_entries = rule_stats["override"] + rule_stats["reference-term"] + rule_stats["reference-reading"]
+    print(
+        "Assigned Yomitan rules for "
+        f"{matched_rule_entries} source entries "
+        f"({rule_stats['reference-term']} exact-term, "
+        f"{rule_stats['reference-reading']} reading-only, "
+        f"{rule_stats['override']} manual overrides)"
+    )
+    print(
+        "Canonicalized "
+        f"{headword_stats['reference-canonicalized']} kana-only primary headwords "
+        "to reference term+reading forms"
+    )
 
 
 if __name__ == "__main__":

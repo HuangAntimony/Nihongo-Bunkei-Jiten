@@ -1,0 +1,24 @@
+{
+  "entries": [
+    {
+      "id": "0D964459",
+      "rules": "v1",
+      "note": "える auxiliary; distinguish 得る from homophonous godan verbs"
+    },
+    {
+      "id": "35122F90",
+      "rules": "v1",
+      "note": "かえる auxiliary; grammar use aligns with 替える/換える-type ichidan compounds"
+    },
+    {
+      "id": "4C44F3A7",
+      "rules": "v1",
+      "note": "かける auxiliary; grammar use aligns with 掛ける-type ichidan compounds"
+    },
+    {
+      "id": "166DF387",
+      "rules": "v5",
+      "note": "きる auxiliary; grammar use aligns with 切る-type godan compounds"
+    }
+  ]
+}
